@@ -27,6 +27,7 @@ namespace NetworkGame.Server.Forms
             _server = new Server(_logManager);
             _server.NewPlayer += NewPlayerEvent;
             _server.RemovePlayer += RemovePlayerEvent;
+            _server.ShowPhysicsUPS += SetPhysicsUPSEvent;
             InitializeComponent();
         }
 
@@ -60,6 +61,16 @@ namespace NetworkGame.Server.Forms
                 return;
             }
             dgvServerStatusLog.Rows.Add(new[] { e.LogMessage.Id, e.LogMessage.Message });
+        }
+
+        public void SetPhysicsUPSEvent(object? sender, ChangeLabelEventArgs e)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new EventHandler<ChangeLabelEventArgs>(SetPhysicsUPSEvent), sender, e);
+                return;
+            }
+            lblPhysicsUPS.Text = e.Value;
         }
 
         private void btnStartServer_Click(object sender, EventArgs e)

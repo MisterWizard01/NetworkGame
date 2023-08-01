@@ -12,109 +12,141 @@ using NetworkGame.Server.MyEventArgs;
 using NetworkGame.Server.Util;
 using System.Security.Cryptography;
 using System.Windows.Forms;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel;
+using System.Threading;
+using System.Diagnostics;
 
-namespace NetworkGame.Server
+namespace NetworkGame.Server;
+
+class Server
 {
-    class Server
+    public event EventHandler<NewPlayerEventArgs> NewPlayer;
+    public event EventHandler<RemovePlayerEventArgs> RemovePlayer;
+    public event EventHandler<ChangeLabelEventArgs> ShowPhysicsUPS;
+    private readonly LogManager logManager;
+    private PlayerManager playerManager;
+    private NetPeerConfiguration _configuration;
+
+    private DateTime lastPhysicsUpdate, lastNetworkUpdate;
+
+    public NetServer NetServer { get; private set; }
+
+    public Server(LogManager logManager)
     {
-        public event EventHandler<NewPlayerEventArgs> NewPlayer;
-        public event EventHandler<RemovePlayerEventArgs> RemovePlayer;
-        private readonly LogManager logManager;
-        private List<PlayerAndConnection> players;
-        private NetPeerConfiguration _configuration;
-        public NetServer NetServer { get; private set; }
+        this.logManager = logManager;
+        playerManager = new PlayerManager();
+        _configuration = new NetPeerConfiguration("networkGame") { Port = 9981 };
+        _configuration.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
+        NetServer = new NetServer(_configuration);
+    }
 
-        public Server(LogManager logManager)
+    public void Run()
+    {
+        NetServer.Start();
+        Console.WriteLine("Server started...");
+        logManager.AddLogMessage("Server", "Server Started.");
+        while (true)
         {
-            this.logManager = logManager;
-            players = new List<PlayerAndConnection>();
-            _configuration = new NetPeerConfiguration("networkGame") { Port = 9981 };
-            _configuration.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
-            NetServer = new NetServer(_configuration);
-        }
+            HandleIncomingMessage();
 
-        public void Run()
-        {
-            NetServer.Start();
-            Console.WriteLine("Server started...");
-            logManager.AddLogMessage("Server", "Server Started.");
-            while (true)
+            TimeSpan physicsUpdateInterval = DateTime.Now - lastPhysicsUpdate;
+            //while(physicsUpdateInterval.TotalMilliseconds < 5)
+            //{
+            //    Thread.Sleep(1);
+            //    physicsUpdateInterval = DateTime.Now - lastPhysicsUpdate;
+            //}
+
+            playerManager.Update(physicsUpdateInterval);
+            lastPhysicsUpdate = DateTime.Now;
+
+            double phsyicsUPS = 1.0 / physicsUpdateInterval.TotalSeconds;
+            ShowPhysicsUPS(this, new ChangeLabelEventArgs(phsyicsUPS.ToString("#.##")));
+
+            if ((DateTime.Now - lastNetworkUpdate).TotalMilliseconds > 100)
             {
-                NetIncomingMessage message;
-                if ((message = NetServer.ReadMessage()) == null)
-                {
-                    continue;
-                }
+                var command = new AllPlayersCommand();
+                command.Run(logManager, this, null, null, playerManager);
+                lastNetworkUpdate = DateTime.Now;
+            }
+        }
+    }
 
-                switch (message.MessageType)
-                {
-                    case NetIncomingMessageType.ConnectionApproval:
-                        var login = new LoginCommand();
-                        login.Run(logManager, this, message, null, players);
-                        break;
+    private void HandleIncomingMessage()
+    {
+        NetIncomingMessage message;
+        if ((message = NetServer.ReadMessage()) != null)
+        {
+            switch (message.MessageType)
+            {
+                case NetIncomingMessageType.ConnectionApproval:
+                    var login = new LoginCommand();
+                    login.Run(logManager, this, message, null, playerManager);
+                    break;
 
-                    case NetIncomingMessageType.Data:
-                        Data(message);
-                        break;
+                case NetIncomingMessageType.Data:
+                    Data(message);
+                    break;
 
-                    case NetIncomingMessageType.StatusChanged:
-                        NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
+                case NetIncomingMessageType.StatusChanged:
+                    NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
 
-                        string reason = message.ReadString();
-                        logManager.AddLogMessage(new LogMessage()
+                    string reason = message.ReadString();
+                    logManager.AddLogMessage(new LogMessage()
+                    {
+                        Id = NetUtility.ToHexString(message.SenderConnection.RemoteUniqueIdentifier),
+                        Message = status.ToString() + ": " + reason,
+                    });
+
+                    if (status == NetConnectionStatus.Disconnected)
+                    {
+                        //find player by connection
+                        var player = playerManager.GetPlayer(message.SenderConnection);
+                        if (player == null)
                         {
-                            Id = NetUtility.ToHexString(message.SenderConnection.RemoteUniqueIdentifier),
-                            Message = status.ToString() + ": " + reason,
-                        });
-
-                        if (status == NetConnectionStatus.Disconnected)
-                        {
-                            //find player by connection
-                            var player = players.FirstOrDefault(p => p.Connection == message.SenderConnection);
-                            if (player == null)
-                            {
-                                break;
-                            }
-
-                            
-                            if (RemovePlayer != null)
-                            {
-                                RemovePlayer(this, new RemovePlayerEventArgs(player.Player.Name));
-                            }
+                            break;
                         }
-                        break;
-                }
+
+                        KickPlayer(player); //tell remaining clients to remove this player
+                        if (RemovePlayer != null) //remove this player from the server GUI
+                        {
+                            RemovePlayer(this, new RemovePlayerEventArgs(player.Player.Name));
+                        }
+                    }
+                    break;
             }
         }
+    }
 
-        private void Data(NetIncomingMessage message)
-        {
-            var packetType = (PacketType)message.ReadByte();
-            var command = PacketFactory.GetCommand(packetType);
-            command.Run(logManager, this, message, null, players);
-        }
+    private void Data(NetIncomingMessage message)
+    {
+        var packetType = (PacketType)message.ReadByte();
+        var command = PacketFactory.GetCommand(packetType);
+        command.Run(logManager, this, message, null, playerManager);
+    }
 
-        public void SendNewPlayerEvent(string username)
+    public void SendNewPlayerEvent(string username)
+    {
+        if (NewPlayer != null)
         {
-            if (NewPlayer != null)
-            {
-                NewPlayer(this, new NewPlayerEventArgs(username));
-            }
+            NewPlayer(this, new NewPlayerEventArgs(username));
         }
+    }
 
-        public void KickPlayer(int playerIndex)
-        {
-            var command = PacketFactory.GetCommand(PacketType.Kick);
-            command.Run(logManager, this, null, players[playerIndex], players);
-            players.RemoveAt(playerIndex);
-        }
+    public void KickPlayer(int playerIndex)
+    {
+        KickPlayer(playerManager.GetPlayer(playerIndex));
+    }
 
-        public static void WritePlayer(Player p, NetOutgoingMessage outMessage)
-        {
-            outMessage.Write(p.Name);
-            outMessage.Write(p.X);
-            outMessage.Write(p.Y);
-        }
+    public void KickPlayer(PlayerAndConnection player)
+    {
+        var command = PacketFactory.GetCommand(PacketType.Kick);
+        command.Run(logManager, this, null, player, playerManager);
+        playerManager.RemovePlayer(player);
+    }
+
+    public static void WritePlayer(Player p, NetOutgoingMessage outMessage)
+    {
+        outMessage.Write(p.Name);
+        outMessage.Write(p.X);
+        outMessage.Write(p.Y);
     }
 }

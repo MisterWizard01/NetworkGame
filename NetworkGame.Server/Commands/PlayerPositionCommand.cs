@@ -11,7 +11,7 @@ namespace NetworkGame.Server.Commands
 {
     class PlayerPositionCommand : ICommand
     {
-        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, List<PlayerAndConnection> players)
+        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
         {
             logManager.AddLogMessage("Server", "Sending out new player position.");
             var outMessage = server.NetServer.CreateMessage();

@@ -163,15 +163,12 @@ public class NetworkManager
         }
     }
 
-    public void SendInputs(float[] signals)
+    public void SendInputs(InputState inputState)
     {
         var outMessage = _client.CreateMessage();
         outMessage.Write((byte)PacketType.Input);
         outMessage.Write(Username);
-        foreach (var signal in signals)
-        {
-            outMessage.Write(signal);
-        }
+        inputState.Write(outMessage);
         _client.SendMessage(outMessage, NetDeliveryMethod.ReliableOrdered);
     }
 

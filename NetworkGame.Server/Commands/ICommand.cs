@@ -11,6 +11,6 @@ namespace NetworkGame.Server.Commands
 {
     interface ICommand
     {
-        void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, List<PlayerAndConnection> players);
+        void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager);
     }
 }

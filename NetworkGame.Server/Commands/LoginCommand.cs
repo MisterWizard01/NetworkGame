@@ -12,14 +12,14 @@ namespace NetworkGame.Server.Commands
 {
     class LoginCommand : ICommand
     {
-        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, List<PlayerAndConnection> players)
+        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
         {
             logManager.AddLogMessage("Server", "New connection...");
             var data = message.ReadByte();
             if (data == (byte)PacketType.Login)
             {
                 logManager.AddLogMessage("Server", "...connection accepted.");
-                playerAndConnection = CreatePlayer(message, players);
+                playerAndConnection = CreatePlayer(message, playerManager);
                 message.SenderConnection.Approve();
 
                 Thread.Sleep(1000);
@@ -27,14 +27,11 @@ namespace NetworkGame.Server.Commands
                 var outMessage = server.NetServer.CreateMessage();
                 outMessage.Write((byte)PacketType.Login);
                 outMessage.Write(true);
-                outMessage.Write(players.Count);
-                for (int i = 0; i < players.Count; i++)
-                {
-                    outMessage.WriteAllProperties(players[i].Player);
-                }
+                outMessage.Write(playerManager.PlayerCount);
+                playerManager.WriteAllPlayers(outMessage);
                 server.NetServer.SendMessage(outMessage, message.SenderConnection, NetDeliveryMethod.ReliableOrdered, 0);
                 var command = new PlayerPositionCommand();
-                command.Run(logManager, server, message, playerAndConnection, players);
+                command.Run(logManager, server, message, playerAndConnection, playerManager);
                 server.SendNewPlayerEvent(playerAndConnection.Player.Name);
             }
             else
@@ -44,14 +41,14 @@ namespace NetworkGame.Server.Commands
             }
         }
 
-        private PlayerAndConnection CreatePlayer(NetIncomingMessage message, List<PlayerAndConnection> players)
+        private PlayerAndConnection CreatePlayer(NetIncomingMessage message, PlayerManager playerManager)
         {
             var player = new Player()
             {
                 Name = message.ReadString(),
             };
             var playerAndConnection = new PlayerAndConnection(player, message.SenderConnection);
-            players.Add(playerAndConnection);
+            playerManager.AddPlayer(playerAndConnection);
             return playerAndConnection;
         }
     }

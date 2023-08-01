@@ -4,7 +4,6 @@ using Microsoft.Xna.Framework.Input;
 using NetworkGame.Library;
 using NetworkGame.Managers;
 using System;
-using System.ComponentModel;
 
 namespace NetworkGame;
 
@@ -18,22 +17,25 @@ public class Game1 : Game
     private Texture2D playerTexture;
     private SpriteFont font;
 
-    float[] lastInputs;
-
-    public float playerSpeed = 2;
+    InputState previousInputState;
 
     public Game1() : base()
     {
         _graphics = new GraphicsDeviceManager(this);
         Content.RootDirectory = "Content";
         IsMouseVisible = true;
+        Window.Title = "Network Game";
+        _graphics.IsFullScreen = false;
+        _graphics.PreferredBackBufferWidth = 640;
+        _graphics.PreferredBackBufferHeight = 480;
+        _graphics.ApplyChanges();
 
         networkManager = new NetworkManager();
         
         inputManager = new InputManager(InputMode.mouseAndKeyboard);
         inputManager.SetBinding(InputSignal.HorizontalMovement, new KeyInput(Keys.A, Keys.D));
         inputManager.SetBinding(InputSignal.VerticalMovement, new KeyInput(Keys.W, Keys.S));
-        lastInputs = new float[4] { 0, 0, 0, 0, };
+        previousInputState = new InputState();
 
         playerManager = new PlayerManager(networkManager);
     }
@@ -60,32 +62,14 @@ public class Game1 : Game
 
         networkManager.Update();
         inputManager.Update(gameTime.ElapsedGameTime.Milliseconds);
-        var signals = inputManager.Signals;
-        //if (CheckInputsChanged())
+        var inputState = inputManager.InputState;
+        if (!previousInputState.Equals(inputState))
         {
-            networkManager.SendInputs(signals);
+            networkManager.SendInputs(inputState);
         }
-        Array.Copy(signals, lastInputs, signals.Length);
+        previousInputState = inputState;
 
         base.Update(gameTime);
-    }
-
-    private bool CheckInputsChanged()
-    {
-        if (lastInputs == null)
-        {
-            return true;
-        }
-
-        for (int i = 0; i < lastInputs.Length; i++)
-        {
-            if (lastInputs[i] != inputManager.Signals[i])
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     protected override void Draw(GameTime gameTime)
@@ -110,7 +94,7 @@ public class Game1 : Game
 
         if (networkManager.Active)
         {
-            networkManager.Disconnect("User disconnected.");
+            networkManager.Disconnect("User closed the application.");
         }
     }
 }

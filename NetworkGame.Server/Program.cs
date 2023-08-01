@@ -2,6 +2,7 @@
 using NetworkGame.Library;
 using NetworkGame.Server.Forms;
 using System;
+using System.Diagnostics;
 using System.Net.Mime;
 using System.Windows.Forms;
 

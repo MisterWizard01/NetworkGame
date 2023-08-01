@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace NetworkGame.Server
 {
-    class PlayerAndConnection
+    public class PlayerAndConnection
     {
         public Player Player { get; set; }
         public NetConnection Connection { get; set; }

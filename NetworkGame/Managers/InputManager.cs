@@ -13,30 +13,30 @@ namespace NetworkGame.Managers
     class InputManager
     {
         public Dictionary<InputMode, Input[]> Bindings;
-        public float[] Signals { get; set; }
+        public InputState InputState { get; set; }
         public InputMode Mode { get; set; }
-
-        public readonly int NumberOfSignals;
 
         public InputManager(InputMode mode)
         {
-            NumberOfSignals = Enum.GetNames(typeof(InputSignal)).Length;
+            Mode = mode;
+            InputState = new InputState();
             Bindings = new Dictionary<InputMode, Input[]>()
             {
-                { InputMode.mouseAndKeyboard, new Input[NumberOfSignals] },
-                { InputMode.keyboardOnly, new Input[NumberOfSignals] },
-                { InputMode.XBoxController, new Input[NumberOfSignals] },
+                { InputMode.mouseAndKeyboard, new Input[InputState.SignalCount] },
+                { InputMode.keyboardOnly, new Input[InputState.SignalCount] },
+                { InputMode.XBoxController, new Input[InputState.SignalCount] },
             };
-            Signals = new float[NumberOfSignals];
-            Mode = mode;
         }
 
         public void Update(double gameTime)
         {
-            for (int i = 0; i < NumberOfSignals; i++)
+            float[] signals = new float[InputState.SignalCount];
+            for (int i = 0; i < signals.Length; i++)
             {
-                Signals[i] = Bindings[Mode][i]?.GetSignalValue(Mouse.GetState(), Keyboard.GetState(), GamePad.GetState(1)) ?? 0;
+                signals[i] = Bindings[Mode][i]?.GetSignalValue(Mouse.GetState(), Keyboard.GetState(), GamePad.GetState(1)) ?? 0;
             }
+
+            InputState = new InputState(signals);
         }
 
         public void SetBinding(InputSignal signalName, Input input)
