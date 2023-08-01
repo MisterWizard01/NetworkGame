@@ -11,9 +11,9 @@ namespace NetworkGame.Server.Commands
 {
     class AllPlayersCommand : ICommand
     {
-        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
+        public void Run(LogManager logManager, GameServer server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
         {
-            logManager.AddLogMessage("Server", "Sending full player list.");
+            //logManager.AddLogMessage("Server", "Sending full player list.");
             var outMessage = server.NetServer.CreateMessage();
             outMessage.Write((byte)PacketType.AllPlayers);
             outMessage.Write(playerManager.PlayerCount);

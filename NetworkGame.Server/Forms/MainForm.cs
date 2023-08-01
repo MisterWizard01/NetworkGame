@@ -15,19 +15,19 @@ namespace NetworkGame.Server.Forms
 {
     public partial class MainForm : Form
     {
-        private Task _task;
-        private Server _server;
+        private Task task;
+        private GameServer server;
         private LogManager _logManager;
-        private CancellationTokenSource _cancellationTokenSource;
+        private CancellationTokenSource cancellationTokenSource;
 
-        public MainForm()
+        public MainForm(GameServer server)
         {
             _logManager = new LogManager();
             _logManager.NewLogMessageEvent += NewLogMessageEvent;
-            _server = new Server(_logManager);
-            _server.NewPlayer += NewPlayerEvent;
-            _server.RemovePlayer += RemovePlayerEvent;
-            _server.ShowPhysicsUPS += SetPhysicsUPSEvent;
+            this.server = server;
+            server.NewPlayer += NewPlayerEvent;
+            server.RemovePlayer += RemovePlayerEvent;
+            server.ShowPhysicsUPS += SetPhysicsUPSEvent;
             InitializeComponent();
         }
 
@@ -67,7 +67,15 @@ namespace NetworkGame.Server.Forms
         {
             if (InvokeRequired)
             {
-                Invoke(new EventHandler<ChangeLabelEventArgs>(SetPhysicsUPSEvent), sender, e);
+                try
+                {
+                    Invoke(new EventHandler<ChangeLabelEventArgs>(SetPhysicsUPSEvent), sender, e);
+                }
+                catch(Exception ex)
+                {
+
+                }
+
                 return;
             }
             lblPhysicsUPS.Text = e.Value;
@@ -78,19 +86,15 @@ namespace NetworkGame.Server.Forms
             btnStartServer.Enabled = false;
             btnStopServer.Enabled = true;
 
-            _cancellationTokenSource = new CancellationTokenSource();
-            _task = new Task(_server.Run);
-            _task.Start();
+            server.Start();
         }
 
         private void btnStopServer_Click(object sender, EventArgs e)
         {
-            if (_task != null && _cancellationTokenSource != null)
-            {
-                _cancellationTokenSource.Cancel();
-                btnStartServer.Enabled = true;
-                btnStopServer.Enabled = false;
-            }
+            btnStartServer.Enabled = true;
+            btnStopServer.Enabled = false;
+
+            server.Stop();
         }
 
         #region Context Menu Players
@@ -102,7 +106,7 @@ namespace NetworkGame.Server.Forms
                 return;
             }
 
-            _server.KickPlayer(listPlayers.SelectedIndex);
+            server.KickPlayer(listPlayers.SelectedIndex);
             listPlayers.Items.RemoveAt(listPlayers.SelectedIndex);
         }
 

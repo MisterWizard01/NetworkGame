@@ -17,89 +17,95 @@ using System.Diagnostics;
 
 namespace NetworkGame.Server;
 
-class Server
+public class GameServer
 {
     public event EventHandler<NewPlayerEventArgs> NewPlayer;
     public event EventHandler<RemovePlayerEventArgs> RemovePlayer;
     public event EventHandler<ChangeLabelEventArgs> ShowPhysicsUPS;
     private readonly LogManager logManager;
     private PlayerManager playerManager;
-    private NetPeerConfiguration _configuration;
+    private NetPeerConfiguration config;
 
     private DateTime lastPhysicsUpdate, lastNetworkUpdate;
 
     public NetServer NetServer { get; private set; }
 
-    public Server(LogManager logManager)
+    public GameServer(LogManager logManager)
     {
         this.logManager = logManager;
         playerManager = new PlayerManager();
-        _configuration = new NetPeerConfiguration("networkGame") { Port = 9981 };
-        _configuration.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
-        NetServer = new NetServer(_configuration);
+        config = new NetPeerConfiguration("networkGame") { Port = 9981 };
+        config.EnableMessageType(NetIncomingMessageType.ConnectionApproval);
+        NetServer = new NetServer(config);
+    }
+
+    public void Start()
+    {
+        NetServer.Start();
+        logManager.AddLogMessage("Server", "Server started.");
+    }
+
+    public void Stop()
+    {
+        NetServer.Shutdown("Requested by user.");
+        logManager.AddLogMessage("Server", "Server stopped.");
     }
 
     public void Run()
-    {
-        NetServer.Start();
-        Console.WriteLine("Server started...");
-        logManager.AddLogMessage("Server", "Server Started.");
-        while (true)
+    { 
+        HandleIncomingMessages();
+
+        TimeSpan physicsUpdateInterval = DateTime.Now - lastPhysicsUpdate;
+        //while(physicsUpdateInterval.TotalMilliseconds < 5)
+        //{
+        //    Thread.Sleep(1);
+        //    physicsUpdateInterval = DateTime.Now - lastPhysicsUpdate;
+        //}
+
+        playerManager.Update(physicsUpdateInterval);
+        lastPhysicsUpdate = DateTime.Now;
+
+        double phsyicsUPS = 1.0 / physicsUpdateInterval.TotalSeconds;
+        ShowPhysicsUPS(this, new ChangeLabelEventArgs(phsyicsUPS.ToString("#.##")));
+
+        if ((DateTime.Now - lastNetworkUpdate).TotalMilliseconds > 100)
         {
-            HandleIncomingMessage();
-
-            TimeSpan physicsUpdateInterval = DateTime.Now - lastPhysicsUpdate;
-            //while(physicsUpdateInterval.TotalMilliseconds < 5)
-            //{
-            //    Thread.Sleep(1);
-            //    physicsUpdateInterval = DateTime.Now - lastPhysicsUpdate;
-            //}
-
-            playerManager.Update(physicsUpdateInterval);
-            lastPhysicsUpdate = DateTime.Now;
-
-            double phsyicsUPS = 1.0 / physicsUpdateInterval.TotalSeconds;
-            ShowPhysicsUPS(this, new ChangeLabelEventArgs(phsyicsUPS.ToString("#.##")));
-
-            if ((DateTime.Now - lastNetworkUpdate).TotalMilliseconds > 100)
-            {
-                var command = new AllPlayersCommand();
-                command.Run(logManager, this, null, null, playerManager);
-                lastNetworkUpdate = DateTime.Now;
-            }
+            var command = new AllPlayersCommand();
+            command.Run(logManager, this, null, null, playerManager);
+            lastNetworkUpdate = DateTime.Now;
         }
     }
 
-    private void HandleIncomingMessage()
+    private void HandleIncomingMessages()
     {
-        NetIncomingMessage message;
-        if ((message = NetServer.ReadMessage()) != null)
+        NetIncomingMessage inMessage;
+        while ((inMessage = NetServer.ReadMessage()) != null)
         {
-            switch (message.MessageType)
+            switch (inMessage.MessageType)
             {
                 case NetIncomingMessageType.ConnectionApproval:
                     var login = new LoginCommand();
-                    login.Run(logManager, this, message, null, playerManager);
+                    login.Run(logManager, this, inMessage, null, playerManager);
                     break;
 
                 case NetIncomingMessageType.Data:
-                    Data(message);
+                    Data(inMessage);
                     break;
 
                 case NetIncomingMessageType.StatusChanged:
-                    NetConnectionStatus status = (NetConnectionStatus)message.ReadByte();
+                    NetConnectionStatus status = (NetConnectionStatus)inMessage.ReadByte();
 
-                    string reason = message.ReadString();
+                    string reason = inMessage.ReadString();
                     logManager.AddLogMessage(new LogMessage()
                     {
-                        Id = NetUtility.ToHexString(message.SenderConnection.RemoteUniqueIdentifier),
+                        Id = NetUtility.ToHexString(inMessage.SenderConnection.RemoteUniqueIdentifier),
                         Message = status.ToString() + ": " + reason,
                     });
 
                     if (status == NetConnectionStatus.Disconnected)
                     {
                         //find player by connection
-                        var player = playerManager.GetPlayer(message.SenderConnection);
+                        var player = playerManager.GetPlayer(inMessage.SenderConnection);
                         if (player == null)
                         {
                             break;
@@ -113,6 +119,7 @@ class Server
                     }
                     break;
             }
+            NetServer.Recycle(inMessage);
         }
     }
 

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NetworkGame.Server.Util
 {
-    class LogMessage
+    public class LogMessage
     {
         public string Id { get; set; }
         public string Message { get; set; }

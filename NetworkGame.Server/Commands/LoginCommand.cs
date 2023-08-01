@@ -12,7 +12,7 @@ namespace NetworkGame.Server.Commands
 {
     class LoginCommand : ICommand
     {
-        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
+        public void Run(LogManager logManager, GameServer server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
         {
             logManager.AddLogMessage("Server", "New connection...");
             var data = message.ReadByte();

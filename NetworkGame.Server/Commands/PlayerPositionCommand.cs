@@ -11,12 +11,12 @@ namespace NetworkGame.Server.Commands
 {
     class PlayerPositionCommand : ICommand
     {
-        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
+        public void Run(LogManager logManager, GameServer server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
         {
             logManager.AddLogMessage("Server", "Sending out new player position.");
             var outMessage = server.NetServer.CreateMessage();
             outMessage.Write((byte)PacketType.PlayerPosition);
-            Server.WritePlayer(playerAndConnection.Player, outMessage);
+            GameServer.WritePlayer(playerAndConnection.Player, outMessage);
             server.NetServer.SendToAll(outMessage, NetDeliveryMethod.ReliableOrdered);
         }
     }

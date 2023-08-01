@@ -11,7 +11,7 @@ namespace NetworkGame.Server.Commands
 {
     class KickPlayerCommand : ICommand
     {
-        public void Run(LogManager logManager, Server server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
+        public void Run(LogManager logManager, GameServer server, NetIncomingMessage message, PlayerAndConnection playerAndConnection, PlayerManager playerManager)
         {
             logManager.AddLogMessage("Server", string.Format("Kicking {0}", playerAndConnection.Player.Name));
             var outMessage = server.NetServer.CreateMessage();

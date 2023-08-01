@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace NetworkGame.Server.MyEventArgs
 {
-    class LogMessageEventArgs : EventArgs
+    public class LogMessageEventArgs : EventArgs
     {
         public LogMessage LogMessage { get; set; }
 

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace NetworkGame.Server.MyEventArgs
 {
-    class NewPlayerEventArgs : EventArgs
+    public class NewPlayerEventArgs : EventArgs
     {
         public string Username { get; set; }
 

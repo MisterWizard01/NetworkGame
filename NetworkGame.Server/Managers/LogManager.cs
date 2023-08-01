@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace NetworkGame.Server.Managers
 {
-    class LogManager
+    public class LogManager
     {
         private List<LogMessage> _logMessages;
 

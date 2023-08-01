@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Services.Client" Version="16.205.1" />
     <PackageReference Include="MonoGame.Framework.DesktopGL" Version="3.8.1.303" />
   </ItemGroup>
 
@@ -23,6 +24,9 @@
   <ItemGroup>
     <Reference Include="Lidgren.Network">
       <HintPath>..\..\lidgren\lidgren-network-gen3-master\Lidgren.Network\bin\Debug\Lidgren.Network.dll</HintPath>
+    </Reference>
+    <Reference Include="SamplesCommon">
+      <HintPath>..\..\lidgren\lidgren-network-gen3-master\Samples\SamplesCommon\bin\Debug\SamplesCommon.dll</HintPath>
     </Reference>
   </ItemGroup>
 
